@@ -1,0 +1,13 @@
+[Unit]
+Description=Service that listens on org.freedesktop.login1 for session (de)activation and stores that info into SQLite.
+Requires=dbus-org.freedesktop.login1.service
+After=dbus-org.freedesktop.login1.service
+Before=graphical.target
+
+[Service]
+ExecStart=/usr/bin/python3 -sO /usr/local/lib/session-track/session-tracker.py
+Type=simple
+Restart=on-failure
+
+[Install]
+WantedBy=graphical.target
