@@ -9,7 +9,7 @@ ETC=/etc
 install_dirs = $(VAR)/linux-session-tracker $(LIB)/linux-session-tracker $(LIB)/systemd/system
 
 install: $(LIB)/linux-session-tracker/session-tracker.py $(LIB)/systemd/system/session-tracker.service $(ETC)/cron.hourly/assemble_sessions $(VAR)/grafana/plugins/frser-sqlite-datasource
-	/usr/bin/python into_grafana.py && systemctl enable session-tracker && systemctl start session-tracker
+	./into_grafana.sh && systemctl enable session-tracker && systemctl start session-tracker
 
 $(install_dirs):
 	/usr/bin/install -d $@
