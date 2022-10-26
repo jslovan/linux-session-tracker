@@ -16,7 +16,6 @@ from json import dumps
 
 
 DB_PATH = '/var/lib/linux-session-tracker/store.db'
-DB_PATH = './store.db'
 
 now = datetime.now
 
@@ -52,14 +51,15 @@ class Storage_DAO(object):
 
     # queries
     _insert_log_sql = (
-        f"""
+        """
         INSERT INTO {tbl_name_log}({col_name_timestamp}, {col_name_id}, {col_name_user}, {col_name_active})
         VALUES (:ts, :id, :user, :active)
-        """
+        """.format(tbl_name_log=tbl_name_log, col_name_timestamp=col_name_timestamp,
+                   col_name_id=col_name_id, col_name_user=col_name_user,
+                   col_name_active=col_name_active)
     )
 
     def __init__(self, db_con):
-        super().__init__()
         self.db_con = db_con
         self.init_tables()
 
@@ -70,21 +70,29 @@ class Storage_DAO(object):
         """
 
         self.db_con.executescript(
-            f"""
-            create table if not exists {self.tbl_name_active} (
-                {self.col_name_id} primary key asc,
-                {self.col_name_active} integer,
-                {self.col_name_user} text);
-            create table if not exists {self.tbl_name_log} (
-                {self.col_name_timestamp} timestamp,
-                {self.col_name_id} text,
-                {self.col_name_user} text,
-                {self.col_name_active} integer);
             """
+            create table if not exists {tbl_name_active} (
+                {col_name_id} primary key asc,
+                {col_name_active} integer,
+                {col_name_user} text);
+            create table if not exists {tbl_name_log} (
+                {col_name_timestamp} timestamp,
+                {col_name_id} text,
+                {col_name_user} text,
+                {col_name_active} integer);
+            """.format(tbl_name_active=self.tbl_name_active,
+                       col_name_id=self.col_name_id,
+                       col_name_active=self.col_name_active,
+                       col_name_user=self.col_name_user,
+                       tbl_name_log=self.tbl_name_log,
+                       col_name_timestamp=self.col_name_timestamp
+                       )
         )
 
-    def insert_session(self, time: datetime, session_id: str, is_active: bool, username: str):
+    def insert_session(self, time, session_id, is_active, username):
         """
+        def insert_session(self, time: datetime, session_id: str, is_active: bool, username: str):
+
         New session emerges.
         1. Insert it to table of active sessions and
         2. Insert current state into the session log.
@@ -93,9 +101,13 @@ class Storage_DAO(object):
         """
         with self.db_con:
             self.db_con.execute(
-                f"""
-                REPLACE INTO {self.tbl_name_active}({self.col_name_id}, {self.col_name_active}, {self.col_name_user}) VALUES (:id, :active, :user)
-                """,
+                """
+                REPLACE INTO {tbl_name_active}({col_name_id}, {col_name_active}, {col_name_user}) VALUES (:id, :active, :user)
+                """.format(tbl_name_active=self.tbl_name_active,
+                           col_name_id=self.col_name_id,
+                           col_name_active=self.col_name_active,
+                           col_name_user=self.col_name_user
+                           ),
                 {'id': session_id, 'active': is_active, 'user': username}
                 )
 
@@ -104,8 +116,10 @@ class Storage_DAO(object):
                 {'ts': time, 'id': session_id, 'user': username, 'active': is_active}
                 )
 
-    def update_session(self, time: datetime, session_id: str, is_active: bool):
+    def update_session(self, time, session_id, is_active):
         """
+        def update_session(self, time: datetime, session_id: str, is_active: bool):
+
         Existing session changes (e.g. becomes inactive).
         1. Update the session state in table of active sessions and
         2. Insert the new state into the session log.
@@ -114,10 +128,14 @@ class Storage_DAO(object):
         """
         with self.db_con:
             cur = self.db_con.execute(
-                f"""
-                UPDATE {self.tbl_name_active} SET {self.col_name_active} = :active WHERE {self.col_name_id} = :id
-                RETURNING {self.col_name_user}
-                """,
+                """
+                UPDATE {tbl_name_active} SET {col_name_active} = :active WHERE {col_name_id} = :id
+                RETURNING {col_name_user}
+                """.format(tbl_name_active=self.tbl_name_active,
+                           col_name_id=self.col_name_id,
+                           col_name_active=self.col_name_active,
+                           col_name_user=self.col_name_user
+                           ),
                 {'id': session_id, 'active': is_active}
                 )
             user = cur.fetchone()[0]
@@ -127,18 +145,23 @@ class Storage_DAO(object):
                 {'ts': time, 'id': session_id, 'user': user, 'active': is_active}
                 )
 
-    def remove_session(self, time: datetime, session_id: str):
+    def remove_session(self, time, session_id):
         """
+        def remove_session(self, time: datetime, session_id: str):
+
         Existing session ends.
         1. Remove it from table of sessions in progress and
         2. Insert the termination to the session log.
         """
         with self.db_con:
             cur = self.db_con.execute(
-                f"""
-                DELETE FROM {self.tbl_name_active} WHERE {self.col_name_id} = :id
-                RETURNING {self.col_name_user}
-                """,
+                """
+                DELETE FROM {tbl_name_active} WHERE {col_name_id} = :id
+                RETURNING {col_name_user}
+                """.format(tbl_name_active=self.tbl_name_active,
+                           col_name_id=self.col_name_id,
+                           col_name_user=self.col_name_user
+                           ),
                 {'id': session_id}
                 )
             user = cur.fetchone()
@@ -149,18 +172,24 @@ class Storage_DAO(object):
                     {'ts': time, 'id': session_id, 'user': user[0], 'active': False}
                     )
 
-    def remove_all(self, time: datetime):
+    def remove_all(self, time):
         """
+        def remove_all(self, time: datetime):
+
         The system is halting.
         1. Empty the table of sessions in progress and
         2. Insert the termination for those active into the log.
         """
         with self.db_con:
             cur = self.db_con.execute(
-                f"""
-                DELETE FROM {self.tbl_name_active}
-                RETURNING {self.col_name_id}, {self.col_name_user}, {self.col_name_active}
                 """
+                DELETE FROM {tbl_name_active}
+                RETURNING {col_name_id}, {col_name_user}, {col_name_active}
+                """.format(tbl_name_active=self.tbl_name_active,
+                           col_name_id=self.col_name_id,
+                           col_name_user=self.col_name_user,
+                           col_name_active=self.col_name_active
+                           )
                 )
             deactivating = [row for row in cur.fetchall() if row[2]]
 
@@ -213,7 +242,6 @@ class SessionTrack(object):
                 )
             )
         )
-        print("new session: ", session_detail)
         if session_detail['Class'] != "user":
             return
 
