@@ -25,14 +25,14 @@
         "editable": true,
         "fiscalYearStartMonth": 0,
         "graphTooltip": 0,
-        "id": None,
+        "id": null,
         "links": [],
         "liveNow": false,
         "panels": [
           {
             "datasource": {
               "type": "frser-sqlite-datasource",
-              "uid": UID
+              "uid": "UID"
             },
             "fieldConfig": {
               "defaults": {
@@ -75,7 +75,7 @@
                   "steps": [
                     {
                       "color": "green",
-                      "value": None
+                      "value": null
                     },
                     {
                       "color": "red",
@@ -111,7 +111,7 @@
               {
                 "datasource": {
                   "type": "frser-sqlite-datasource",
-                  "uid": UID
+                  "uid": "UID"
                 },
                 "hide": false,
                 "queryText": "SELECT  $__unixEpochGroupSeconds(start_ts, 86400) AS ts, username,  SUM(end_ts - start_ts) as screen_time\nFROM session_history\nWHERE start_ts BETWEEN $__from / 1000 AND $__to / 1000\nGROUP BY $__unixEpochGroupSeconds(start_ts, 86400), username\nORDER BY ts ASC, username ASC;\n",
@@ -131,7 +131,7 @@
           {
             "datasource": {
               "type": "frser-sqlite-datasource",
-              "uid": UID
+              "uid": "UID"
             },
             "fieldConfig": {
               "defaults": {
@@ -155,7 +155,7 @@
                   "steps": [
                     {
                       "color": "green",
-                      "value": None
+                      "value": null
                     }
                   ]
                 },
@@ -191,7 +191,7 @@
               {
                 "datasource": {
                   "type": "frser-sqlite-datasource",
-                  "uid": UID
+                  "uid": "UID"
                 },
                 "queryText": "SELECT  end_ts - start_ts as screen_time\nFROM session_history\nWHERE start_ts BETWEEN ($__to / 1000  - 2592000) AND $__to / 1000 \n               AND username = \"$user\" ; ",
                 "queryType": "table",
@@ -209,7 +209,7 @@
           {
             "datasource": {
               "type": "frser-sqlite-datasource",
-              "uid": UID
+              "uid": "UID"
             },
             "fieldConfig": {
               "defaults": {
@@ -252,7 +252,7 @@
                   "steps": [
                     {
                       "color": "green",
-                      "value": None
+                      "value": null
                     },
                     {
                       "color": "red",
@@ -291,7 +291,7 @@
               {
                 "datasource": {
                   "type": "frser-sqlite-datasource",
-                  "uid": UID
+                  "uid": "UID"
                 },
                 "hide": false,
                 "queryText": "SELECT  start_ts AS ts, username,  end_ts - start_ts as screen_time\nFROM session_history\nWHERE start_ts BETWEEN $__from / 1000 AND $__to / 1000\nORDER BY ts ASC, username ASC;\n",
@@ -326,7 +326,7 @@
               },
               "datasource": {
                 "type": "frser-sqlite-datasource",
-                "uid": UID
+                "uid": "UID"
               },
               "definition": "select distinct username from session_history where start_ts between $__from / 1000 and $__to / 1000",
               "hide": 0,
@@ -350,7 +350,7 @@
         "timepicker": {},
         "timezone": "",
         "title": "Desktop screen time",
-        "uid": None,
+        "uid": null,
         "version": 1,
         "weekStart": ""
     },
