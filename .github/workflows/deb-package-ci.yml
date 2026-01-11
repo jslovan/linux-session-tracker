@@ -56,6 +56,18 @@ jobs:
         GF_PASS: password
       run: |
         AUTH_HEADER="Authorization: Basic $(echo -n "${{ env.GF_USER }}:${{ env.GF_PASS }}" | base64)"
+
+        echo "Ověřuji přihlašovací údaje Grafana..."
+        # Pokus o získání informací o uživateli pro ověření přihlašovacích údajů
+        AUTH_CHECK_STATUS=$(curl -X GET -H "$AUTH_HEADER" -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/user)
+
+        if [ "$AUTH_CHECK_STATUS" -ne 200 ]; then
+          echo "Chyba: Ověření přihlašovacích údajů Grafana selhalo. Stavový kód: $AUTH_CHECK_STATUS"
+          echo "Ujistěte se, že GF_USER a GF_PASS jsou správné a mají administrátorská práva."
+          exit 1
+        fi
+        echo "Přihlašovací údaje Grafana ověřeny."
+
         # Odstraněna volba -s (silent) pro podrobnější výstup v případě chyby
         API_RESPONSE=$(curl -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
         NEW_KEY=$(echo "$API_RESPONSE" | jq -r '.key')
