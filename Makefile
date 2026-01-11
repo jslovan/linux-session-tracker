@@ -24,41 +24,42 @@ check_env:
 		exit 1; \
 	fi
 
-install: check_env $(install_dirs) $(LIB)/linux-session-tracker/session-tracker.py $(LIB)/systemd/system/session-tracker.service $(ETC)/cron.hourly/assemble_sessions $(VAR)/grafana/plugins/frser-sqlite-datasource _create_dsh.json $(VAR)/linux-session-tracker/store.db
-	$(SYSTEMCTL) enable session-tracker
-	$(SYSTEMCTL) start session-tracker
+install: check_env $(addprefix $(DESTDIR),$(install_dirs)) \
+	$(DESTDIR)$(LIB)/linux-session-tracker/session-tracker.py \
+	$(DESTDIR)$(LIB)/systemd/system/session-tracker.service \
+	$(DESTDIR)$(ETC)/cron.hourly/assemble_sessions \
+	$(DESTDIR)$(VAR)/grafana/plugins/frser-sqlite-datasource \
+	$(DESTDIR)$(VAR)/linux-session-tracker/store.db
+	# Tyto příkazy (systemctl) by se neměly spouštět během sestavování .deb balíčku.
+	# Měly by být součástí postinst skriptu balíčku, pokud je to nutné.
+	# Pro přímé volání 'make install' bez DESTDIR mohou zůstat.
+	if [ -z "$(DESTDIR)" ]; then \
+		$(SYSTEMCTL) enable session-tracker || true; \
+		$(SYSTEMCTL) start session-tracker || true; \
+	fi
 
-$(install_dirs):
+$(addprefix $(DESTDIR),$(install_dirs)):
 	$(INSTALL) -d $@
 
-$(LIB)/linux-session-tracker/session-tracker.py: session-tracker.py | $(LIB)/linux-session-tracker
-	$(INSTALL) -t $(LIB)/linux-session-tracker $<
+$(DESTDIR)$(LIB)/linux-session-tracker/session-tracker.py: session-tracker.py | $(addprefix $(DESTDIR),$(LIB)/linux-session-tracker)
+	$(INSTALL) -t $(DESTDIR)$(LIB)/linux-session-tracker $<
 
-$(LIB)/systemd/system/session-tracker.service: session-tracker.service | $(LIB)/systemd/system
-	$(INSTALL) -t $(LIB)/systemd/system $<
+$(DESTDIR)$(LIB)/systemd/system/session-tracker.service: session-tracker.service | $(addprefix $(DESTDIR),$(LIB)/systemd/system)
+	$(INSTALL) -t $(DESTDIR)$(LIB)/systemd/system $<
 
-$(ETC)/cron.hourly/assemble_sessions: assemble_sessions | $(ETC)/cron.hourly
-	$(INSTALL) -t $(ETC)/cron.hourly $<
+$(DESTDIR)$(ETC)/cron.hourly/assemble_sessions: assemble_sessions | $(addprefix $(DESTDIR),$(ETC)/cron.hourly)
+	$(INSTALL) -t $(DESTDIR)$(ETC)/cron.hourly $<
 
-$(VAR)/linux-session-tracker/store.db: | $(VAR)/linux-session-tracker
+$(DESTDIR)$(VAR)/linux-session-tracker/store.db: | $(addprefix $(DESTDIR),$(VAR)/linux-session-tracker)
 	touch $@
 
 # Pro CI prostředí se předpokládá instalace pluginu přes GF_INSTALL_PLUGINS v Docker konfiguraci Grafana.
 # V lokálním prostředí by se plugin instaloval jinak. Zde pouze zajistíme existenci adresáře.
-$(VAR)/grafana/plugins/frser-sqlite-datasource:
+$(DESTDIR)$(VAR)/grafana/plugins/frser-sqlite-datasource:
 	$(INSTALL) -d $@
 
-_created_ds.json:
-	$(CURL) -X POST -d @grafana/create_source.json $(GRAFANA)/datasources > $@
-
-_gfid: _created_ds.json
-	$(PYTHON) grafana/datasource_id.py --gf_dsh _created_ds.json > $@
-
-_update_ds.json: _created_ds.json _gfid
-	read GFID < _gfid && $(PYTHON) grafana/update_data_source.py --gf_dsh _created_ds.json > $@ && $(CURL) -X PUT -d @_update_ds.json $(GRAFANA)/datasources/$${GFID}
-
-_create_dsh.json: _update_ds.json _created_ds.json
-	$(PYTHON) grafana/create_dashboard.py --gf_dsh _created_ds.json > $@ && $(CURL) -X POST -d @_create_dsh.json $(GRAFANA)/dashboards/db
+# Cíle pro interakci s Grafana API by se měly volat pouze v rámci make install-test, nikoli make install.
+# Přesunuto do make install-test.
 
 clean:
 	-rm -f _*.json
@@ -71,10 +72,24 @@ uninstall:
 	echo "It must be deleted manually"
 	echo "Possibly leaving datasource and dashboard in Grafana - must be deleted manually."
 
-install-test: install verify-files verify-systemd verify-grafana-plugin verify-grafana-datasource verify-grafana-dashboard
+install-test: install \
+	_created_ds.json _gfid _update_ds.json _create_dsh.json \
+	verify-files verify-systemd verify-grafana-plugin verify-grafana-datasource verify-grafana-dashboard
 	@echo "--------------------------------------------------------"
 	@echo "All installation tests passed successfully!"
 	@echo "--------------------------------------------------------"
+
+_created_ds.json:
+	$(CURL) -X POST -d @grafana/create_source.json $(GRAFANA)/datasources > $@
+
+_gfid: _created_ds.json
+	$(PYTHON) grafana/datasource_id.py --gf_dsh _created_ds.json > $@
+
+_update_ds.json: _created_ds.json _gfid
+	read GFID < _gfid && $(PYTHON) grafana/update_data_source.py --gf_dsh _created_ds.json > $@ && $(CURL) -X PUT -d @_update_ds.json $(GRAFANA)/datasources/$${GFID}
+
+_create_dsh.json: _update_ds.json _created_ds.json
+	$(PYTHON) grafana/create_dashboard.py --gf_dsh _created_ds.json > $@ && $(CURL) -X POST -d @_create_dsh.json $(GRAFANA)/dashboards/db
 
 verify-files:
 	@echo "Verifying installation of files and directories..."

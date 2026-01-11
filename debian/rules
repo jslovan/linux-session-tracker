@@ -7,19 +7,13 @@
 	dh $@
 
 override_dh_auto_install:
-	# Důležité: Standardní praxe pro .deb balíčky je instalovat soubory do debian/tmp,
-	# a následně je dh_install přesune do finálních systémových cest.
-	# Zde však voláme váš 'make install', který instaluje přímo do systémových cest.
-	# Pro testování funkčnosti vašeho Makefile 'install' je to akceptovatelné,
-	# ale pro produkční .deb balíček byste měli upravit 'make install' tak,
-	# aby respektoval proměnnou DESTDIR (např. make install DESTDIR=$(CURDIR)/debian/tmp).
-	sudo make install
+	# Použijeme dh_auto_install, který volá make install s DESTDIR=$(CURDIR)/debian/tmp.
+	# Náš Makefile 'install' cíl byl upraven tak, aby respektoval DESTDIR.
+	dh_auto_install
 
 override_dh_install:
-	# Přeskočíme standardní dh_install, protože make install již soubory umístil.
-	# Pokud by make install používal DESTDIR, zde bychom jej volali:
-	# dh_install
-	:
+	# dh_install se nyní postará o přesun souborů z debian/tmp do finální struktury balíčku.
+	dh_install
 
 override_dh_auto_clean:
 	# Odstraní dočasné soubory vytvořené dh_auto_clean
