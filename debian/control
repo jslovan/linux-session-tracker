@@ -1,4 +1,5 @@
 Package: linux-session-tracker
+Source: linux-session-tracker
 Version: 0.1.0
 Section: utils
 Priority: optional
