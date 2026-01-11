@@ -41,10 +41,37 @@ jobs:
         # python3-full, curl, jq, sqlite3, dbus, wget pro make install-test a interakci s Grafanou
         sudo apt-get install -y dpkg-dev debhelper devscripts python3-full curl jq sqlite3 dbus wget
 
+    - name: Wait for Grafana server to be ready
+      run: |
+        echo "Waiting for Grafana server to be ready..."
+        wget --no-verbose --tries=5 --retry-connrefused --waitretry=5 --output-file=/dev/null http://localhost:3000/api/health
+        echo "Grafana is ready."
+
+    - name: Generate and Set GRAFANA_API_KEY
+      env:
+        # Vytvoření API klíče v Grafaně pro CI test
+        # To vyžaduje přihlašovací údaje administrátora, které jsou nastaveny ve službě Grafana
+        # Používáme curl s basic auth, protože v CI nemáme uživatelskou interakci
+        GF_USER: admin
+        GF_PASS: password
+      run: |
+        AUTH_HEADER="Authorization: Basic $(echo -n "${{ env.GF_USER }}:${{ env.GF_PASS }}" | base64)"
+        API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
+        NEW_KEY=$(echo "$API_RESPONSE" | jq -r '.key')
+        
+        if [ -z "$NEW_KEY" ] || [ "$NEW_KEY" = "null" ]; then
+          echo "Error: Failed to generate Grafana API key."
+          echo "Grafana API response: $API_RESPONSE"
+          exit 1
+        fi
+        echo "GRAFANA_API_KEY=$NEW_KEY" >> $GITHUB_ENV
+        echo "Grafana API key generated and set."
+
     - name: Build .deb package
       run: |
         # Použijte dpkg-buildpackage k sestavení balíčku
         # -us, -uc zabraňuje podepisování balíčku (nepotřebné pro CI)
+        # GRAFANA_API_KEY je nyní k dispozici v prostředí pro make install (volaný z debian/rules)
         dpkg-buildpackage -us -uc
       
     - name: Find and install .deb package
@@ -57,30 +84,6 @@ jobs:
         fi
         echo "Found .deb package: $DEB_FILE"
         sudo dpkg -i "$DEB_FILE"
-
-    - name: Set GRAFANA_API_KEY environment variable for make install-test
-      env:
-        # Vytvoření API klíče v Grafaně pro CI test
-        # To vyžaduje přihlašovací údaje administrátora, které jsou nastaveny ve službě Grafana
-        # Používáme curl s basic auth, protože v CI nemáme uživatelskou interakci
-        GF_USER: admin
-        GF_PASS: password
-      run: |
-        echo "Waiting for Grafana server to be ready..."
-        wget --no-verbose --tries=5 --retry-connrefused --waitretry=5 --output-file=/dev/null http://localhost:3000/api/health
-        echo "Grafana is ready."
-
-        AUTH_HEADER="Authorization: Basic $(echo -n "${{ env.GF_USER }}:${{ env.GF_PASS }}" | base64)"
-        API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
-        NEW_KEY=$(echo "$API_RESPONSE" | jq -r '.key')
-        
-        if [ -z "$NEW_KEY" ] || [ "$NEW_KEY" = "null" ]; then
-          echo "Error: Failed to generate Grafana API key."
-          echo "Grafana API response: $API_RESPONSE"
-          exit 1
-        fi
-        echo "GRAFANA_API_KEY=$NEW_KEY" >> $GITHUB_ENV
-        echo "Grafana API key generated and set."
 
     - name: Run make install-test
       env:
