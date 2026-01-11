@@ -2,9 +2,8 @@ Source: linux-session-tracker
 Section: utils
 Priority: optional
 Maintainer: Your Name <your.email@example.com>
-Build-Depends: debhelper-compat (= 13)
+Build-Depends: debhelper-compat (= 13), build-essential
 Standards-Version: 4.6.0
-Version: 0.1.0
 
 Package: linux-session-tracker
 Architecture: all
