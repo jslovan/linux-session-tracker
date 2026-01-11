@@ -9,7 +9,6 @@ PYTHON=/usr/bin/python3
 CURL=curl -H 'Content-Type: application/json' -H 'Accept: application/json' -H "Authorization: Bearer $(GRAFANA_API_KEY)"
 INSTALL=/usr/bin/install
 SYSTEMCTL=systemctl
-GRAFANA_CLI=grafana-cli
 
 # Directories to be created during installation
 install_dirs=$(VAR)/linux-session-tracker $(LIB)/linux-session-tracker $(LIB)/systemd/system
@@ -17,9 +16,6 @@ install_dirs=$(VAR)/linux-session-tracker $(LIB)/linux-session-tracker $(LIB)/sy
 # Check for required commands
 $(SYSTEMCTL):
 	@command -v $(SYSTEMCTL) >/dev/null 2>&1 || { echo >&2 "$(SYSTEMCTL) is required but not installed. Aborting."; exit 1; }
-
-$(GRAFANA_CLI):
-	@command -v $(GRAFANA_CLI) >/dev/null 2>&1 || { echo >&2 "$(GRAFANA_CLI) is required but not installed. Aborting."; exit 1; }
 
 # Check for required environment variable
 check_env:
@@ -47,9 +43,10 @@ $(ETC)/cron.hourly/assemble_sessions: assemble_sessions | $(ETC)/cron.hourly
 $(VAR)/linux-session-tracker/store.db: | $(VAR)/linux-session-tracker
 	touch $@
 
-$(VAR)/grafana/plugins/frser-sqlite-datasource: | $(GRAFANA_CLI)
-	$(GRAFANA_CLI) plugins install frser-sqlite-datasource
-	$(SYSTEMCTL) restart grafana-server
+# Pro CI prostředí se předpokládá instalace pluginu přes GF_INSTALL_PLUGINS v Docker konfiguraci Grafana.
+# V lokálním prostředí by se plugin instaloval jinak. Zde pouze zajistíme existenci adresáře.
+$(VAR)/grafana/plugins/frser-sqlite-datasource:
+	$(INSTALL) -d $@
 
 _created_ds.json:
 	$(CURL) -X POST -d @grafana/create_source.json $(GRAFANA)/datasources > $@
@@ -95,10 +92,10 @@ verify-systemd: $(SYSTEMCTL)
 	@$(SYSTEMCTL) is-active session-tracker.service || { echo "ERROR: Service is not active!"; exit 1; }
 	@echo "The session-tracker.service is enabled and active."
 
-verify-grafana-plugin: $(GRAFANA_CLI)
+verify-grafana-plugin: check_env
 	@echo "Verifying Grafana plugin installation..."
-	@export HOME=/tmp; \
-	$(GRAFANA_CLI) plugins ls | grep -q "frser-sqlite-datasource" || { echo "ERROR: Grafana plugin frser-sqlite-datasource not found!"; exit 1; }
+	@curl -s -H "Authorization: Bearer $(GRAFANA_API_KEY)" http://localhost:3000/api/plugins | \
+	jq -e '.[] | select(.id == "frser-sqlite-datasource")' > /dev/null || { echo "ERROR: Grafana plugin frser-sqlite-datasource not found or not listed via API!"; exit 1; }
 	@echo "Grafana plugin frser-sqlite-datasource is installed."
 
 verify-grafana-datasource: check_env
