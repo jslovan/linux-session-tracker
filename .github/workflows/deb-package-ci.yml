@@ -76,7 +76,7 @@ jobs:
 
         echo "Pokouším se vytvořit Grafana API klíč pomocí curl (s -v pro diagnostiku)..."
         # Používáme curl s -v (verbose) pro maximální detail v logu. 2>&1 přesměruje stderr do stdout.
-        FULL_CURL_RESPONSE=$(curl -v -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys 2>&1)
+        FULL_CURL_RESPONSE=$(curl -v -X POST -H "Content-Type: application/json" -d '{"name":"ci-test-key", "role": "Admin"}' http://admin:password@localhost:3000/api/auth/keys 2>&1)
         CURL_EXIT_CODE=$?
         
         echo "Celá odpověď Grafana API (včetně hlaviček a verbose výstupu):"
