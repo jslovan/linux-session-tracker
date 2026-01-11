@@ -76,39 +76,39 @@ uninstall:
 
 install-test: install verify-files verify-systemd verify-grafana-plugin verify-grafana-datasource verify-grafana-dashboard
 	@echo "--------------------------------------------------------"
-	@echo "Všechny testy instalace proběhly úspěšně!"
+	@echo "All installation tests passed successfully!"
 	@echo "--------------------------------------------------------"
 
 verify-files:
-	@echo "Ověřování instalace souborů a adresářů..."
-	@test -f $(LIB)/linux-session-tracker/session-tracker.py || { echo "CHYBA: session-tracker.py nenalezen!"; exit 1; }
-	@test -f $(LIB)/systemd/system/session-tracker.service || { echo "CHYBA: session-tracker.service nenalezen!"; exit 1; }
-	@test -f $(ETC)/cron.hourly/assemble_sessions || { echo "CHYBA: assemble_sessions nenalezen!"; exit 1; }
-	@test -d $(VAR)/linux-session-tracker/ || { echo "CHYBA: /var/lib/linux-session-tracker/ nenalezen!"; exit 1; }
-	@test -f $(VAR)/linux-session-tracker/store.db || { echo "CHYBA: store.db nenalezen!"; exit 1; }
-	@echo "Všechny soubory a adresáře jsou na svém místě."
+	@echo "Verifying installation of files and directories..."
+	@test -f $(LIB)/linux-session-tracker/session-tracker.py || { echo "ERROR: session-tracker.py not found!"; exit 1; }
+	@test -f $(LIB)/systemd/system/session-tracker.service || { echo "ERROR: session-tracker.service not found!"; exit 1; }
+	@test -f $(ETC)/cron.hourly/assemble_sessions || { echo "ERROR: assemble_sessions not found!"; exit 1; }
+	@test -d $(VAR)/linux-session-tracker/ || { echo "ERROR: /var/lib/linux-session-tracker/ not found!"; exit 1; }
+	@test -f $(VAR)/linux-session-tracker/store.db || { echo "ERROR: store.db not found!"; exit 1; }
+	@echo "All files and directories are in place."
 
 verify-systemd: $(SYSTEMCTL)
-	@echo "Ověřování služby systemd..."
+	@echo "Verifying systemd service..."
 	@$(SYSTEMCTL) daemon-reload
-	@$(SYSTEMCTL) is-enabled session-tracker.service || { echo "CHYBA: Služba není povolena!"; exit 1; }
-	@$(SYSTEMCTL) is-active session-tracker.service || { echo "CHYBA: Služba není aktivní!"; exit 1; }
-	@echo "Služba session-tracker.service je povolena a aktivní."
+	@$(SYSTEMCTL) is-enabled session-tracker.service || { echo "ERROR: Service is not enabled!"; exit 1; }
+	@$(SYSTEMCTL) is-active session-tracker.service || { echo "ERROR: Service is not active!"; exit 1; }
+	@echo "The session-tracker.service is enabled and active."
 
 verify-grafana-plugin: $(GRAFANA_CLI)
-	@echo "Ověřování instalace Grafana pluginu..."
+	@echo "Verifying Grafana plugin installation..."
 	@export HOME=/tmp; \
-	$(GRAFANA_CLI) plugins ls | grep -q "frser-sqlite-datasource" || { echo "CHYBA: Grafana plugin frser-sqlite-datasource nenalezen!"; exit 1; }
-	@echo "Grafana plugin frser-sqlite-datasource je nainstalován."
+	$(GRAFANA_CLI) plugins ls | grep -q "frser-sqlite-datasource" || { echo "ERROR: Grafana plugin frser-sqlite-datasource not found!"; exit 1; }
+	@echo "Grafana plugin frser-sqlite-datasource is installed."
 
 verify-grafana-datasource: check_env
-	@echo "Ověřování vytvoření Grafana datasource..."
+	@echo "Verifying Grafana datasource creation..."
 	@curl -s -H "Authorization: Bearer $(GRAFANA_API_KEY)" http://localhost:3000/api/datasources | \
-	jq -e '.[] | select(.name == "Session Tracker DB")' > /dev/null || { echo "CHYBA: Grafana datasource 'Session Tracker DB' nenalezen!"; exit 1; }
-	@echo "Grafana datasource 'Session Tracker DB' byl vytvořen."
+	jq -e '.[] | select(.name == "Session Tracker DB")' > /dev/null || { echo "ERROR: Grafana datasource 'Session Tracker DB' not found!"; exit 1; }
+	@echo "Grafana datasource 'Session Tracker DB' was created."
 
 verify-grafana-dashboard: check_env
-	@echo "Ověřování vytvoření Grafana dashboardu..."
+	@echo "Verifying Grafana dashboard creation..."
 	@curl -s -H "Authorization: Bearer $(GRAFANA_API_KEY)" http://localhost:3000/api/search?query=Desktop%20Session%20Tracker | \
-	jq -e '.[0] | select(.title == "Desktop Session Tracker")' > /dev/null || { echo "CHYBA: Grafana dashboard 'Desktop Session Tracker' nenalezen!"; exit 1; }
-	@echo "Grafana dashboard 'Desktop Session Tracker' byl vytvořen."
+	jq -e '.[0] | select(.title == "Desktop Session Tracker")' > /dev/null || { echo "ERROR: Grafana dashboard 'Desktop Session Tracker' not found!"; exit 1; }
+	@echo "Grafana dashboard 'Desktop Session Tracker' was created."
