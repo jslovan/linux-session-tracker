@@ -29,7 +29,8 @@ install: check_env $(addprefix $(DESTDIR),$(install_dirs)) \
 	$(DESTDIR)$(LIB)/systemd/system/session-tracker.service \
 	$(DESTDIR)$(ETC)/cron.hourly/assemble_sessions \
 	$(DESTDIR)$(VAR)/grafana/plugins/frser-sqlite-datasource \
-	$(DESTDIR)$(VAR)/linux-session-tracker/store.db
+	$(DESTDIR)$(VAR)/linux-session-tracker/store.db \
+	_created_ds.json _gfid _update_ds.json _create_dsh.json
 	# Tyto příkazy (systemctl) by se neměly spouštět během sestavování .deb balíčku.
 	# Měly by být součástí postinst skriptu balíčku, pokud je to nutné.
 	# Pro přímé volání 'make install' bez DESTDIR mohou zůstat.
@@ -73,7 +74,6 @@ uninstall:
 	echo "Possibly leaving datasource and dashboard in Grafana - must be deleted manually."
 
 install-test: install \
-	_created_ds.json _gfid _update_ds.json _create_dsh.json \
 	verify-files verify-systemd verify-grafana-plugin verify-grafana-datasource verify-grafana-dashboard
 	@echo "--------------------------------------------------------"
 	@echo "All installation tests passed successfully!"
