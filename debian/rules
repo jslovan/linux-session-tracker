@@ -1,0 +1,34 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+# export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_install:
+	# Důležité: Standardní praxe pro .deb balíčky je instalovat soubory do debian/tmp,
+	# a následně je dh_install přesune do finálních systémových cest.
+	# Zde však voláme váš 'make install', který instaluje přímo do systémových cest.
+	# Pro testování funkčnosti vašeho Makefile 'install' je to akceptovatelné,
+	# ale pro produkční .deb balíček byste měli upravit 'make install' tak,
+	# aby respektoval proměnnou DESTDIR (např. make install DESTDIR=$(CURDIR)/debian/tmp).
+	sudo make install
+
+override_dh_install:
+	# Přeskočíme standardní dh_install, protože make install již soubory umístil.
+	# Pokud by make install používal DESTDIR, zde bychom jej volali:
+	# dh_install
+	:
+
+override_dh_auto_clean:
+	# Odstraní dočasné soubory vytvořené dh_auto_clean
+	dh_auto_clean
+	# A náš vlastní clean cíl
+	make clean
+
+override_dh_installinit:
+	# Dh_installinit je potřeba pro systémové služby.
+	# Používáme --no-start --no-enable, protože make install se již stará o povolení a spuštění služby.
+	# V reálném .deb balíčku by se o to staraly skripty postinst/prerm.
+	dh_installinit --name=session-tracker --no-start --no-enable

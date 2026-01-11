@@ -1,0 +1,90 @@
+name: Build and Install .deb Package
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-install-deb:
+    runs-on: ubuntu-latest
+
+    # Nastavení služby Grafana pro testování interakce s Grafana API
+    services:
+      grafana:
+        image: grafana/grafana:latest
+        ports:
+          - 3000:3000
+        env:
+          GF_SECURITY_ADMIN_USER: admin
+          GF_SECURITY_ADMIN_PASSWORD: password
+          GF_AUTH_ANONYMOUS_ENABLED: true
+          GF_AUTH_DISABLE_LOGIN_FORM: true
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        # dpkg-dev, debhelper, devscripts pro sestavení .deb balíčku
+        # python3-full, curl, jq, sqlite3, dbus, wget pro make install-test a interakci s Grafanou
+        sudo apt-get install -y dpkg-dev debhelper devscripts python3-full curl jq sqlite3 dbus wget
+
+    - name: Build .deb package
+      run: |
+        # Použijte dpkg-buildpackage k sestavení balíčku
+        # -us, -uc zabraňuje podepisování balíčku (nepotřebné pro CI)
+        dpkg-buildpackage -us -uc
+      
+    - name: Find and install .deb package
+      run: |
+        # Najděte vygenerovaný .deb soubor (název se může lišit verzí, architekturou atd.)
+        DEB_FILE=$(find . -name "*.deb" -print -quit)
+        if [ -z "$DEB_FILE" ]; then
+          echo "Error: .deb package not found!"
+          exit 1
+        fi
+        echo "Found .deb package: $DEB_FILE"
+        sudo dpkg -i "$DEB_FILE"
+
+    - name: Set GRAFANA_API_KEY environment variable for make install-test
+      env:
+        # Vytvoření API klíče v Grafaně pro CI test
+        # To vyžaduje přihlašovací údaje administrátora, které jsou nastaveny ve službě Grafana
+        # Používáme curl s basic auth, protože v CI nemáme uživatelskou interakci
+        GF_USER: admin
+        GF_PASS: password
+      run: |
+        echo "Waiting for Grafana server to be ready..."
+        wget --no-verbose --tries=5 --retry-connrefused --waitretry=5 --output-file=/dev/null http://localhost:3000/api/health
+        echo "Grafana is ready."
+
+        AUTH_HEADER="Authorization: Basic $(echo -n "${{ env.GF_USER }}:${{ env.GF_PASS }}" | base64)"
+        API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
+        NEW_KEY=$(echo "$API_RESPONSE" | jq -r '.key')
+        
+        if [ -z "$NEW_KEY" ] || [ "$NEW_KEY" = "null" ]; then
+          echo "Error: Failed to generate Grafana API key."
+          echo "Grafana API response: $API_RESPONSE"
+          exit 1
+        fi
+        echo "GRAFANA_API_KEY=$NEW_KEY" >> $GITHUB_ENV
+        echo "Grafana API key generated and set."
+
+    - name: Run make install-test
+      env:
+        GRAFANA_API_KEY: ${{ env.GRAFANA_API_KEY }}
+        HOME: /tmp # Grafana CLI může ukládat soubory do HOME, což může v CI způsobit problémy s oprávněními
+      run: |
+        sudo make install-test

@@ -1,0 +1,11 @@
+Package: linux-session-tracker
+Version: 0.1.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3, sqlite3, cron, systemd, python3-pydbus, python3-gi, gir1.2-glib-2.0, grafana-cli, jq
+Maintainer: Your Name <your.email@example.com>
+Description: A simple tool to track user session activity and store it in SQLite for Grafana visualization.
+ This package provides a service to monitor user session activations/deactivations
+ and logs them into an SQLite database. It also includes scripts to integrate
+ with Grafana for visualization.
