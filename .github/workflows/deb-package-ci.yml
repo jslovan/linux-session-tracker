@@ -74,42 +74,53 @@ jobs:
         fi
         echo "Přihlašovací údaje Grafana ověřeny."
 
-        echo "Pokouším se vytvořit Grafana API klíč pomocí curl (s -v pro diagnostiku)..."
-        # Používáme curl s -v (verbose) pro maximální detail v logu. 2>&1 přesměruje stderr do stdout.
-        FULL_CURL_RESPONSE=$(curl -v -X POST -H "Content-Type: application/json" -d '{"name":"ci-test-key", "role": "Admin"}' http://admin:password@localhost:3000/api/auth/keys 2>&1)
-        CURL_EXIT_CODE=$?
-        
-        echo "Celá odpověď Grafana API (včetně hlaviček a verbose výstupu):"
-        echo "$FULL_CURL_RESPONSE"
-        echo "Curl návratový kód: $CURL_EXIT_CODE"
+        echo "Pokouším se vytvořit Service Account 'ci-test-service-account'..."
+        # Vytvoření servisního účtu pomocí admin autentizace
+        SERVICE_ACCOUNT_CREATE_RESPONSE=$(curl -v -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-service-account", "role": "Admin", "is_disabled": false}' http://localhost:3000/api/serviceaccounts 2>&1)
+        SERVICE_ACCOUNT_CREATE_EXIT_CODE=$?
 
-        if [ "$CURL_EXIT_CODE" -ne 0 ]; then
-          echo "Chyba: Curl požadavek selhal s kódem $CURL_EXIT_CODE."
-          echo "Celý výstup curl pro diagnostiku:"
-          echo "$FULL_CURL_RESPONSE"
+        echo "Odpověď Grafana API pro vytvoření Service Accountu:"
+        echo "$SERVICE_ACCOUNT_CREATE_RESPONSE"
+        echo "Návratový kód curl: $SERVICE_ACCOUNT_CREATE_EXIT_CODE"
+
+        if [ "$SERVICE_ACCOUNT_CREATE_EXIT_CODE" -ne 0 ]; then
+          echo "Chyba: Vytvoření Service Accountu selhalo s kódem $SERVICE_ACCOUNT_CREATE_EXIT_CODE."
           exit 1
         fi
 
-        # Extrahujeme pouze JSON tělo z verbose výstupu curl.
-        # `grep -m 1 -Eo '{.*}'` najde a extrahuje první JSON objekt na řádku.
-        # `|| true` zabrání selhání skriptu, pokud grep nenajde žádný JSON.
-        API_JSON_BODY=$(echo "$FULL_CURL_RESPONSE" | grep -m 1 -Eo '{.*}' || true)
-        
-        if [ -z "$API_JSON_BODY" ]; then
-            echo "Varování: V odpovědi curl nebyl nalezen žádný JSON objekt. Zobrazuji plnou odpověď pro diagnostiku."
-            echo "$FULL_CURL_RESPONSE"
-            NEW_KEY=""
-        else
-            NEW_KEY=$(echo "$API_JSON_BODY" | jq -r '.key' || true)
+        SERVICE_ACCOUNT_JSON_BODY=$(echo "$SERVICE_ACCOUNT_CREATE_RESPONSE" | grep -m 1 -Eo '{.*}' || true)
+        SERVICE_ACCOUNT_ID=$(echo "$SERVICE_ACCOUNT_JSON_BODY" | jq -r '.id' || true)
+
+        if [ -z "$SERVICE_ACCOUNT_ID" ] || [ "$SERVICE_ACCOUNT_ID" = "null" ]; then
+          echo "Chyba: Nepodařilo se získat ID Service Accountu."
+          exit 1
         fi
+        echo "Service Account 'ci-test-service-account' vytvořen s ID: $SERVICE_ACCOUNT_ID."
+
+        echo "Generuji token pro Service Account ID $SERVICE_ACCOUNT_ID..."
+        # Vytvoření tokenu pro nově vytvořený servisní účet
+        SERVICE_ACCOUNT_TOKEN_RESPONSE=$(curl -v -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-token"}' http://localhost:3000/api/serviceaccounts/$SERVICE_ACCOUNT_ID/tokens 2>&1)
+        SERVICE_ACCOUNT_TOKEN_EXIT_CODE=$?
+
+        echo "Odpověď Grafana API pro vytvoření tokenu:"
+        echo "$SERVICE_ACCOUNT_TOKEN_RESPONSE"
+        echo "Návratový kód curl: $SERVICE_ACCOUNT_TOKEN_EXIT_CODE"
+
+        if [ "$SERVICE_ACCOUNT_TOKEN_EXIT_CODE" -ne 0 ]; then
+          echo "Chyba: Vytvoření tokenu pro Service Account selhalo s kódem $SERVICE_ACCOUNT_TOKEN_EXIT_CODE."
+          exit 1
+        fi
+        
+        SERVICE_ACCOUNT_TOKEN_JSON_BODY=$(echo "$SERVICE_ACCOUNT_TOKEN_RESPONSE" | grep -m 1 -Eo '{.*}' || true)
+        NEW_KEY=$(echo "$SERVICE_ACCOUNT_TOKEN_JSON_BODY" | jq -r '.key' || true)
 
         if [ -z "$NEW_KEY" ] || [ "$NEW_KEY" = "null" ]; then
-          echo "Chyba: Nepodařilo se vygenerovat Grafana API klíč (klíč nebyl nalezen ve výstupu JSON nebo jq selhal)."
+          echo "Chyba: Nepodařilo se vygenerovat token pro Service Account (klíč nebyl nalezen ve výstupu JSON)."
           echo "Zkontrolujte log pro podrobný výstup curl a JSON odpověď."
           exit 1
         fi
         echo "GRAFANA_API_KEY=$NEW_KEY" >> $GITHUB_ENV
-        echo "Grafana API klíč vygenerován a nastaven."
+        echo "Grafana Service Account token vygenerován a nastaven jako GRAFANA_API_KEY."
 
     - name: Build .deb package
       run: |
