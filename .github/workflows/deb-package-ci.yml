@@ -69,7 +69,9 @@ jobs:
         echo "Přihlašovací údaje Grafana ověřeny."
 
         # Odstraněna volba -s (silent) pro podrobnější výstup v případě chyby
-        API_RESPONSE=$(curl -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
+        echo "Pokouším se vytvořit Grafana API klíč..."
+        # Zahrnujeme hlavičky (-i) pro více detailů v logu v případě chyby
+        API_RESPONSE=$(curl -i -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
         NEW_KEY=$(echo "$API_RESPONSE" | jq -r '.key')
         
         if [ -z "$NEW_KEY" ] || [ "$NEW_KEY" = "null" ]; then
