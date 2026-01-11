@@ -68,20 +68,25 @@ jobs:
         fi
         echo "Přihlašovací údaje Grafana ověřeny."
 
-        # Odstraněna volba -s (silent) pro podrobnější výstup v případě chyby
-        echo "Pokouším se vytvořit Grafana API klíč..."
-        # Zahrnujeme hlavičky (-i) pro více detailů v logu v případě chyby
-        API_RESPONSE=$(curl -i -X POST -H "Content-Type: application/json" -H "$AUTH_HEADER" -d '{"name":"ci-test-key", "role": "Admin"}' http://localhost:3000/api/auth/keys)
-        echo "${API_RESPONSE}"
-        NEW_KEY=$(echo "$API_RESPONSE" | jq -r '.key')
+        echo "Pokouším se vytvořit Grafana API klíč pomocí grafana-cli..."
+        # Používáme grafana-cli pro spolehlivější interakci s Grafana API
+        # Explicitně předáváme URL, uživatelské jméno a heslo
+        GRAFANA_CLI_OUTPUT=$(grafana-cli --url http://localhost:3000 --username "${{ env.GF_USER }}" --password "${{ env.GF_PASS }}" admin api-key add ci-test-key Admin)
         
-        if [ -z "$NEW_KEY" ] || [ "$NEW_KEY" = "null" ]; then
-          echo "Error: Failed to generate Grafana API key."
-          echo "Grafana API response: $API_RESPONSE"
+        echo "Výstup grafana-cli:"
+        echo "$GRAFANA_CLI_OUTPUT"
+
+        # Extrahujeme klíč z výstupu grafana-cli
+        # Očekáváme formát "Key generated: <klíč>"
+        NEW_KEY=$(echo "$GRAFANA_CLI_OUTPUT" | awk '/Key generated:/ {print $3}')
+        
+        if [ -z "$NEW_KEY" ]; then
+          echo "Chyba: Nepodařilo se vygenerovat Grafana API klíč."
+          echo "Ujistěte se, že grafana-cli byl schopen se připojit a vytvořit klíč."
           exit 1
         fi
         echo "GRAFANA_API_KEY=$NEW_KEY" >> $GITHUB_ENV
-        echo "Grafana API key generated and set."
+        echo "Grafana API klíč vygenerován a nastaven."
 
     - name: Build .deb package
       run: |
