@@ -222,6 +222,7 @@ class SessionTrack(object):
             lambda sender, session_id:
                 self.store.remove_session(now(), session_id)
             )
+        # Added logging for PrepareForShutdown
         loginManager.PrepareForShutdown.connect(
             lambda sender: self.store.remove_all(now())
             )

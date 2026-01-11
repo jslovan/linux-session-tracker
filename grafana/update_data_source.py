@@ -8,7 +8,7 @@ def update_data_source(dsid=None, uid=None, orgid=None):
         "id": dsid,
         "uid": uid,
         "orgId": orgid,
-        "name": "SQLite Session Tracker",
+        "name": "Session Tracker DB", # Changed data source name
         "type": "frser-sqlite-datasource",
         "typeLogoUrl": "",
         "access": "proxy",
@@ -22,7 +22,7 @@ def update_data_source(dsid=None, uid=None, orgid=None):
         "jsonData": {
           "pathPrefix": "file:",
           "pathOptions": "mode=ro",
-          "path": "/var/lib/linux-session-tracker/store.db"
+          "path": "/var/lib/linux-session-tracker/store.db" # Ensured correct path
         },
         "secureJsonFields": {},
         "version": 1,

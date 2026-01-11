@@ -356,7 +356,7 @@ def create_dashboard(uid=None):
             },
             "timepicker": {},
             "timezone": "",
-            "title": "Desktop screen time",
+            "title": "Desktop Session Tracker", # Changed title
             "uid": None,
             "version": 1,
             "weekStart": ""
