@@ -39,7 +39,8 @@ jobs:
         sudo apt-get update
         # dpkg-dev, debhelper, devscripts pro sestavení .deb balíčku
         # python3-full, curl, jq, sqlite3, dbus, wget pro make install-test a interakci s Grafanou
-        sudo apt-get install -y dpkg-dev debhelper devscripts python3-full curl jq sqlite3 dbus wget
+        # grafana-cli pro generování API klíče
+        sudo apt-get install -y dpkg-dev debhelper devscripts python3-full curl jq sqlite3 dbus wget grafana-cli
 
     - name: Wait for Grafana server to be ready
       run: |
