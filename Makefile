@@ -1,4 +1,4 @@
-.PHONY: install uninstall clean check_env
+.PHONY: install uninstall clean check_env install-test verify-files verify-systemd verify-grafana-plugin verify-grafana-datasource verify-grafana-dashboard
 
 # Variables
 LIB=/usr/local/lib
@@ -73,3 +73,42 @@ uninstall:
 	echo "Leaving the database at " $(VAR)/linux-session-tracker
 	echo "It must be deleted manually"
 	echo "Possibly leaving datasource and dashboard in Grafana - must be deleted manually."
+
+install-test: install verify-files verify-systemd verify-grafana-plugin verify-grafana-datasource verify-grafana-dashboard
+	@echo "--------------------------------------------------------"
+	@echo "Všechny testy instalace proběhly úspěšně!"
+	@echo "--------------------------------------------------------"
+
+verify-files:
+	@echo "Ověřování instalace souborů a adresářů..."
+	@test -f $(LIB)/linux-session-tracker/session-tracker.py || { echo "CHYBA: session-tracker.py nenalezen!"; exit 1; }
+	@test -f $(LIB)/systemd/system/session-tracker.service || { echo "CHYBA: session-tracker.service nenalezen!"; exit 1; }
+	@test -f $(ETC)/cron.hourly/assemble_sessions || { echo "CHYBA: assemble_sessions nenalezen!"; exit 1; }
+	@test -d $(VAR)/linux-session-tracker/ || { echo "CHYBA: /var/lib/linux-session-tracker/ nenalezen!"; exit 1; }
+	@test -f $(VAR)/linux-session-tracker/store.db || { echo "CHYBA: store.db nenalezen!"; exit 1; }
+	@echo "Všechny soubory a adresáře jsou na svém místě."
+
+verify-systemd: $(SYSTEMCTL)
+	@echo "Ověřování služby systemd..."
+	@$(SYSTEMCTL) daemon-reload
+	@$(SYSTEMCTL) is-enabled session-tracker.service || { echo "CHYBA: Služba není povolena!"; exit 1; }
+	@$(SYSTEMCTL) is-active session-tracker.service || { echo "CHYBA: Služba není aktivní!"; exit 1; }
+	@echo "Služba session-tracker.service je povolena a aktivní."
+
+verify-grafana-plugin: $(GRAFANA_CLI)
+	@echo "Ověřování instalace Grafana pluginu..."
+	@export HOME=/tmp; \
+	$(GRAFANA_CLI) plugins ls | grep -q "frser-sqlite-datasource" || { echo "CHYBA: Grafana plugin frser-sqlite-datasource nenalezen!"; exit 1; }
+	@echo "Grafana plugin frser-sqlite-datasource je nainstalován."
+
+verify-grafana-datasource: check_env
+	@echo "Ověřování vytvoření Grafana datasource..."
+	@curl -s -H "Authorization: Bearer $(GRAFANA_API_KEY)" http://localhost:3000/api/datasources | \
+	jq -e '.[] | select(.name == "Session Tracker DB")' > /dev/null || { echo "CHYBA: Grafana datasource 'Session Tracker DB' nenalezen!"; exit 1; }
+	@echo "Grafana datasource 'Session Tracker DB' byl vytvořen."
+
+verify-grafana-dashboard: check_env
+	@echo "Ověřování vytvoření Grafana dashboardu..."
+	@curl -s -H "Authorization: Bearer $(GRAFANA_API_KEY)" http://localhost:3000/api/search?query=Desktop%20Session%20Tracker | \
+	jq -e '.[0] | select(.title == "Desktop Session Tracker")' > /dev/null || { echo "CHYBA: Grafana dashboard 'Desktop Session Tracker' nenalezen!"; exit 1; }
+	@echo "Grafana dashboard 'Desktop Session Tracker' byl vytvořen."
