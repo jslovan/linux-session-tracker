@@ -1,6 +1,8 @@
+import argparse
 import json
 import pathlib
-import argparse
+import sys
+
 
 parser = argparse.ArgumentParser(description='Writes ID of the created datasource to stdout.')
 parser.add_argument('--gf_dsh', type=pathlib.Path, required=True, help='The datasource description of the created dashboard.')

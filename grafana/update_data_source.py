@@ -2,6 +2,7 @@ import json
 import pathlib
 import argparse
 
+
 def update_data_source(dsid=None, uid=None, orgid=None):
     return {
         "id": dsid,
@@ -34,7 +35,7 @@ def update_data_source(dsid=None, uid=None, orgid=None):
           "alert.rules.external:read": True,
           "alert.rules.external:write": True,
           "datasources.id:read": True,
-          "datasources:delete": False,
+          "datasdatasources:delete": False,
           "datasources:query": True,
           "datasources:read": True,
           "datasources:write": False

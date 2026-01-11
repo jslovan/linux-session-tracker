@@ -1,6 +1,7 @@
+import argparse
 import json
 import pathlib
-import argparse
+import sys
 
 
 def create_dashboard(uid=None):
